@@ -1,4 +1,3 @@
-import logging.handlers
 import os
 from pathlib import Path
 
@@ -74,6 +73,10 @@ SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=int(os.environ.get("JWT_ACCESS_TOKEN_LIFETIME_MINUTES", "60"))),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=int(os.environ.get("JWT_REFRESH_TOKEN_LIFETIME_DAYS", "7"))),
 }
+
+# ── Honeypot ──────────────────────────────────────────────────────────────────
+# Clé partagée pour protéger GET /api/honeypot/ (header X-Honeypot-Key)
+HONEYPOT_API_KEY = os.environ.get("HONEYPOT_API_KEY", "")
 
 # ── REST Framework ────────────────────────────────────────────────────────────
 

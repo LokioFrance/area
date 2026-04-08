@@ -1,6 +1,7 @@
 from rest_framework import serializers
-
 from zone.models import Area, SubArea
+
+from api.models import HoneypotAttempt
 
 
 class SubAreaSerializer(serializers.ModelSerializer):
@@ -19,3 +20,9 @@ class AreaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Area
         fields = ["id", "name", "address", "sub_areas"]
+
+
+class HoneypotAttemptSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HoneypotAttempt
+        fields = ["id", "ip", "user_agent", "path", "method", "username", "timestamp"]

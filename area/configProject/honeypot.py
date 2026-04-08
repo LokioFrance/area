@@ -15,10 +15,25 @@ les bots engagés et enregistrer plusieurs tentatives.
 import logging
 
 from django.http import HttpResponse
-from django.views.decorators.csrf import csrf_exempt
 from django.utils.timezone import now
+from django.views.decorators.csrf import csrf_exempt
 
 logger = logging.getLogger("honeypot")
+
+
+def _save_attempt(ip, user_agent, path, method, username=""):
+    """Persiste la tentative en base de données (import tardif pour éviter les imports circulaires)."""
+    try:
+        from api.models import HoneypotAttempt
+        HoneypotAttempt.objects.create(
+            ip=ip,
+            user_agent=user_agent,
+            path=path,
+            method=method,
+            username=username,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.error("Impossible de sauvegarder la tentative honeypot en DB : %s", exc)
 
 # Fausse page de login qui ressemble exactement à l'admin Django standard
 _FAKE_LOGIN_PAGE = """<!DOCTYPE html>
@@ -99,6 +114,7 @@ def honeypot_admin(request):
             "HONEYPOT POST | ip=%s | ua=%s | path=%s | user=%r | pass=%r | ts=%s",
             ip, user_agent, path, username, password, timestamp,
         )
+        _save_attempt(ip, user_agent, path, "POST", username)
         error_html = '<p class="errornote">Saisissez des identifiants valides. '\
                      'Notez que les champs peuvent être sensibles à la casse.</p>'
         return HttpResponse(
@@ -112,6 +128,7 @@ def honeypot_admin(request):
         "HONEYPOT GET  | ip=%s | ua=%s | path=%s | ts=%s",
         ip, user_agent, path, timestamp,
     )
+    _save_attempt(ip, user_agent, path, "GET")
     return HttpResponse(
         _FAKE_LOGIN_PAGE.format(error=""),
         status=200,
