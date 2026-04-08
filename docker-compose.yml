@@ -30,6 +30,7 @@ services:
       AREA_API_URL: "http://area:8000"
       MCP_PORT: "${MCP_PORT:-9000}"
       MCP_API_KEY: "${MCP_API_KEY:-}"
+      HONEYPOT_API_KEY: "${HONEYPOT_API_KEY:-}"
     ports:
       - "${MCP_HOST_PORT:-9001}:9000"
     depends_on:

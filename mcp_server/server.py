@@ -7,18 +7,20 @@ Expose les outils suivants à tout client MCP (Claude, etc.) :
   - create_area       : créer une zone
   - update_area       : modifier une zone
   - delete_area       : supprimer une zone (cascade sur ses sous-zones)
-  - list_sub_areas    : lister toutes les sous-zones
-  - get_sub_area      : détail d'une sous-zone
-  - create_sub_area   : créer une sous-zone dans une zone
-  - update_sub_area   : modifier une sous-zone
-  - delete_sub_area   : supprimer une sous-zone
+  - list_sub_areas        : lister toutes les sous-zones
+  - get_sub_area          : détail d'une sous-zone
+  - create_sub_area       : créer une sous-zone dans une zone
+  - update_sub_area       : modifier une sous-zone
+  - delete_sub_area       : supprimer une sous-zone
+  - get_honeypot_attempts : lister les tentatives enregistrées par le honeypot /admin/
 
 Transport : SSE (HTTP) — le serveur écoute sur 0.0.0.0:${MCP_PORT}.
 
 Variables d'environnement requises :
-  AREA_API_URL  : URL de base de l'API area (ex: http://area:8000)
-  MCP_PORT      : port d'écoute du serveur MCP (défaut: 9000)
-  MCP_API_KEY   : clé partagée attendue dans l'en-tête X-MCP-Key (optionnel)
+  AREA_API_URL     : URL de base de l'API area (ex: http://area:8000)
+  MCP_PORT         : port d'écoute du serveur MCP (défaut: 9000)
+  MCP_API_KEY      : clé partagée attendue dans l'en-tête X-MCP-Key (optionnel)
+  HONEYPOT_API_KEY : clé pour accéder à GET /api/honeypot/ (doit correspondre au .env de area)
 """
 
 import os
@@ -30,6 +32,7 @@ from mcp.server.fastmcp import FastMCP
 AREA_API_URL = os.environ.get("AREA_API_URL", "http://area:8000").rstrip("/")
 MCP_PORT = int(os.environ.get("MCP_PORT", "9000"))
 MCP_API_KEY = os.environ.get("MCP_API_KEY", "")
+HONEYPOT_API_KEY = os.environ.get("HONEYPOT_API_KEY", "")
 
 mcp = FastMCP(
     name="area-mcp",
@@ -37,7 +40,8 @@ mcp = FastMCP(
         "Serveur MCP du microservice Area. "
         "Permet de gérer les zones géographiques (Area) et leurs sous-zones (SubArea). "
         "Chaque Area possède un nom et une adresse unique. "
-        "Chaque SubArea appartient à une Area et possède un nom."
+        "Chaque SubArea appartient à une Area et possède un nom. "
+        "Donne également accès aux tentatives honeypot enregistrées sur /admin/."
     ),
 )
 
@@ -191,6 +195,22 @@ def delete_sub_area(sub_area_id: int) -> str:
     with _client() as c:
         _check(c.delete(f"/api/sub-areas/{sub_area_id}/"))
     return f"Sous-zone {sub_area_id} supprimée."
+
+
+# ── OUTILS — HONEYPOT ────────────────────────────────────────────────────────
+
+@mcp.tool()
+def get_honeypot_attempts() -> list:
+    """
+    Retourne toutes les tentatives enregistrées par le honeypot /admin/.
+
+    Chaque entrée contient : ip, user_agent, path, method, username, timestamp.
+    Nécessite que HONEYPOT_API_KEY soit configurée sur le microservice.
+    """
+    with _client() as c:
+        return _check(
+            c.get("/api/honeypot/", headers={"X-Honeypot-Key": HONEYPOT_API_KEY})
+        )
 
 
 # ── Entrée ────────────────────────────────────────────────────────────────────
