@@ -1,0 +1,108 @@
+#!/bin/bash
+set -euo pipefail
+
+# ─────────────────────────────────────────────────────────────────────────────
+# deploy.sh — Déploiement du microservice area
+# Usage : ./deploy.sh
+# ─────────────────────────────────────────────────────────────────────────────
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ENV_FILE="$SCRIPT_DIR/.env"
+ENV_EXAMPLE="$SCRIPT_DIR/.env.example"
+
+# ── Couleurs ──────────────────────────────────────────────────────────────────
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+info()    { echo -e "${BLUE}[INFO]${NC} $*"; }
+success() { echo -e "${GREEN}[OK]${NC}   $*"; }
+warn()    { echo -e "${YELLOW}[WARN]${NC} $*"; }
+error()   { echo -e "${RED}[ERR]${NC}  $*" >&2; }
+
+# ── Vérification des prérequis ────────────────────────────────────────────────
+info "Vérification des prérequis..."
+
+if ! command -v docker &>/dev/null; then
+    error "Docker n'est pas installé."
+    exit 1
+fi
+
+if ! docker compose version &>/dev/null; then
+    error "Docker Compose (plugin) n'est pas disponible."
+    exit 1
+fi
+
+success "Docker $(docker --version | awk '{print $3}' | tr -d ',')"
+
+# ── Gestion du fichier .env ───────────────────────────────────────────────────
+if [ ! -f "$ENV_FILE" ]; then
+    warn "Fichier .env introuvable."
+    if [ -f "$ENV_EXAMPLE" ]; then
+        info "Ouverture de .env.example pour création du .env..."
+        cp "$ENV_EXAMPLE" "$ENV_FILE"
+        # Ouvrir l'éditeur pour que l'utilisateur remplisse les valeurs
+        EDITOR="${EDITOR:-nano}"
+        "$EDITOR" "$ENV_FILE"
+    else
+        error ".env.example introuvable. Impossible de continuer."
+        exit 1
+    fi
+else
+    info "Fichier .env trouvé."
+    read -rp "Voulez-vous éditer le .env avant de déployer ? [o/N] " EDIT_ENV
+    if [[ "${EDIT_ENV,,}" == "o" ]]; then
+        EDITOR="${EDITOR:-nano}"
+        "$EDITOR" "$ENV_FILE"
+    fi
+fi
+
+# Vérification que DJANGO_SECRET_KEY est définie et non vide / placeholder
+source "$ENV_FILE"
+if [[ -z "${DJANGO_SECRET_KEY:-}" ]] || [[ "$DJANGO_SECRET_KEY" == "changeme-generate-a-real-secret-key" ]]; then
+    error "DJANGO_SECRET_KEY non définie ou non modifiée dans .env"
+    error "Générez une clé avec : python -c \"import secrets; print(secrets.token_urlsafe(50))\""
+    exit 1
+fi
+
+# ── Build & déploiement ───────────────────────────────────────────────────────
+cd "$SCRIPT_DIR"
+
+info "Construction de l'image Docker..."
+docker compose build --no-cache
+
+info "Arrêt du conteneur existant (si présent)..."
+docker compose down --remove-orphans || true
+
+info "Démarrage du service..."
+docker compose up -d
+
+# ── Vérification du démarrage ─────────────────────────────────────────────────
+info "Attente du démarrage du conteneur..."
+MAX_WAIT=30
+WAITED=0
+until docker compose ps | grep -q "healthy\|running"; do
+    sleep 2
+    WAITED=$((WAITED + 2))
+    if [ "$WAITED" -ge "$MAX_WAIT" ]; then
+        warn "Le conteneur met du temps à démarrer. Vérifiez les logs :"
+        docker compose logs --tail=30
+        break
+    fi
+done
+
+# ── Résumé ────────────────────────────────────────────────────────────────────
+HOST_PORT="${HOST_PORT:-8001}"
+echo ""
+echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+success "Déploiement terminé !"
+echo ""
+echo -e "  API      : ${BLUE}http://localhost:${HOST_PORT}/api/areas/${NC}"
+echo -e "  Swagger  : ${BLUE}http://localhost:${HOST_PORT}/swagger/${NC}"
+echo -e "  ReDoc    : ${BLUE}http://localhost:${HOST_PORT}/redoc/${NC}"
+echo ""
+echo -e "  Logs     : docker compose logs -f"
+echo -e "  Arrêter  : docker compose down"
+echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
