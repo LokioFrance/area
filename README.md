@@ -36,14 +36,11 @@ Le script `deploy.sh` fait tout automatiquement :
 
 1. Vérifie que Docker est disponible
 2. Crée le `.env` depuis `.env.example` si absent et ouvre l'éditeur pour le remplir
-3. Valide que `DJANGO_SECRET_KEY` est bien définie
+3. Valide que `DJANGO_SECRET_KEY` et `DJANGO_SUPERUSER_PASSWORD` sont bien définies
 4. Build l'image et démarre les conteneurs (`area` + `area-mcp`)
-5. Attend que les services soient sains et affiche les URLs
-
-> Au premier démarrage, créer le superutilisateur Django :
-> ```bash
-> docker compose exec area python manage.py createsuperuser
-> ```
+5. Applique les migrations Django
+6. Crée le superutilisateur (ignoré s'il existe déjà)
+7. Attend que les services soient sains et affiche les URLs
 
 Pour arrêter les services :
 
@@ -83,6 +80,9 @@ Copier `.env.example` en `.env` et remplir les valeurs. Ne jamais committer `.en
 | `DJANGO_DEBUG` | Mode debug (`true` en dev, `false` en prod) | `false` |
 | `DJANGO_ALLOWED_HOSTS` | Hosts autorisés, séparés par des virgules | `localhost,127.0.0.1` |
 | `DJANGO_ADMIN_URL` | URL secrète de la vraie interface admin (sans `/`) | `mon-panneau-secret` |
+| `DJANGO_SUPERUSER_USERNAME` | Login du superutilisateur créé au déploiement | `admin` |
+| `DJANGO_SUPERUSER_EMAIL` | Email du superutilisateur | `admin@example.com` |
+| `DJANGO_SUPERUSER_PASSWORD` | Mot de passe du superutilisateur | — |
 | `JWT_ACCESS_TOKEN_LIFETIME_MINUTES` | Durée de vie du token d'accès (minutes) | `60` |
 | `JWT_REFRESH_TOKEN_LIFETIME_DAYS` | Durée de vie du token de rafraîchissement (jours) | `7` |
 | `HONEYPOT_API_KEY` | Clé partagée pour protéger `GET /api/honeypot/` | — |

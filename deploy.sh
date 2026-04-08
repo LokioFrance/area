@@ -39,31 +39,40 @@ success "Docker $(docker --version | awk '{print $3}' | tr -d ',')"
 
 # ── Gestion du fichier .env ───────────────────────────────────────────────────
 if [ ! -f "$ENV_FILE" ]; then
-    warn "Fichier .env introuvable."
-    if [ -f "$ENV_EXAMPLE" ]; then
-        info "Ouverture de .env.example pour création du .env..."
-        cp "$ENV_EXAMPLE" "$ENV_FILE"
-        # Ouvrir l'éditeur pour que l'utilisateur remplisse les valeurs
-        EDITOR="${EDITOR:-nano}"
-        "$EDITOR" "$ENV_FILE"
-    else
+    if [ ! -f "$ENV_EXAMPLE" ]; then
         error ".env.example introuvable. Impossible de continuer."
         exit 1
     fi
-else
-    info "Fichier .env trouvé."
-    read -rp "Voulez-vous éditer le .env avant de déployer ? [o/N] " EDIT_ENV
-    if [[ "${EDIT_ENV,,}" == "o" ]]; then
-        EDITOR="${EDITOR:-nano}"
-        "$EDITOR" "$ENV_FILE"
+
+    info "Création du fichier .env depuis .env.example..."
+    cp "$ENV_EXAMPLE" "$ENV_FILE"
+    success ".env créé."
+
+    info "Ouverture de l'éditeur — remplissez les valeurs puis sauvegardez et quittez."
+    EDITOR="${EDITOR:-nano}"
+    "$EDITOR" "$ENV_FILE"
+
+    echo ""
+    read -rp "$(echo -e "${BLUE}[INFO]${NC} Continuer le déploiement ? [O/n] ")" CONFIRM
+    if [[ "${CONFIRM,,}" == "n" ]]; then
+        warn "Déploiement annulé. Le fichier .env a été conservé."
+        exit 0
     fi
+else
+    info "Fichier .env trouvé — déploiement automatique."
 fi
 
-# Vérification que DJANGO_SECRET_KEY est définie et non vide / placeholder
+# Vérification des variables critiques
 source "$ENV_FILE"
+
 if [[ -z "${DJANGO_SECRET_KEY:-}" ]] || [[ "$DJANGO_SECRET_KEY" == "changeme-generate-a-real-secret-key" ]]; then
     error "DJANGO_SECRET_KEY non définie ou non modifiée dans .env"
     error "Générez une clé avec : python -c \"import secrets; print(secrets.token_urlsafe(50))\""
+    exit 1
+fi
+
+if [[ -z "${DJANGO_SUPERUSER_PASSWORD:-}" ]] || [[ "$DJANGO_SUPERUSER_PASSWORD" == "changeme-strong-password" ]]; then
+    error "DJANGO_SUPERUSER_PASSWORD non définie ou non modifiée dans .env"
     exit 1
 fi
 
@@ -92,6 +101,15 @@ until docker compose ps | grep -q "healthy\|running"; do
         break
     fi
 done
+
+# ── Migrations & superutilisateur ────────────────────────────────────────────
+info "Application des migrations Django..."
+docker compose exec area python manage.py migrate --noinput
+
+info "Création du superutilisateur (ignoré s'il existe déjà)..."
+docker compose exec area python manage.py createsuperuser --noinput 2>/dev/null \
+    && success "Superutilisateur « ${DJANGO_SUPERUSER_USERNAME:-admin} » créé." \
+    || warn "Le superutilisateur existe déjà ou DJANGO_SUPERUSER_* non définis — aucune action."
 
 # ── Résumé ────────────────────────────────────────────────────────────────────
 HOST_PORT="${HOST_PORT:-8001}"
