@@ -1,0 +1,47 @@
+services:
+
+  area:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: area
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - area_db:/app/db.sqlite3
+    ports:
+      - "${HOST_PORT:-8001}:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/areas/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  area-mcp:
+    build:
+      context: ./mcp_server
+      dockerfile: Dockerfile
+    container_name: area-mcp
+    restart: unless-stopped
+    environment:
+      # URL interne vers le service area (réseau Docker)
+      AREA_API_URL: "http://area:8000"
+      MCP_PORT: "${MCP_PORT:-9000}"
+      MCP_API_KEY: "${MCP_API_KEY:-}"
+      HONEYPOT_API_KEY: "${HONEYPOT_API_KEY:-}"
+    ports:
+      - "${MCP_HOST_PORT:-9001}:9000"
+    depends_on:
+      area:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:9000/sse').raise_for_status()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  area_db:
