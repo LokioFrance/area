@@ -9,7 +9,7 @@ services:
     env_file:
       - .env
     volumes:
-      - area_db:/app/db.sqlite3
+      - area_db:/app/data
     ports:
       - "${HOST_PORT:-8001}:8000"
     healthcheck:
