@@ -243,8 +243,10 @@ Projet **Lokio** — développé par **Clément Chermeux**.
 - [ ] Pagination des résultats sur `/api/areas/` et `/api/sub-areas/`
 - [ ] Filtrage et recherche sur les zones par nom ou adresse
 - [ ] Export CSV / JSON des tentatives honeypot
-- [ ] Assigner des zones à des personnes, pouvoir diviser des sous-zones en sous-sous-zones etc
+- [ ] Assigner des zones à des personnes + enjeu cohérence des données si un propriétaire n'existe plus
+- [ ] Pouvoir diviser des sous-zones en sous-sous-zones etc
 - [ ] Mettre en place le CI/CD
-- [ ] Mettre en place le systeme de connexion commune de l'ensemble de la soltion lokio
+- [ ] Mettre en place le systeme de connexion commune de l'ensemble de la solution lokion - keycloak
+
 
 
