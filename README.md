@@ -247,6 +247,8 @@ Projet **Lokio** — développé par **Clément Chermeux**.
 - [ ] Pouvoir diviser des sous-zones en sous-sous-zones etc
 - [ ] Mettre en place le CI/CD
 - [ ] Mettre en place le systeme de connexion commune de l'ensemble de la solution lokion - keycloak
+- [ ] Rajouter système de bande cookie etc pour être aux normes
+
 
 
 
